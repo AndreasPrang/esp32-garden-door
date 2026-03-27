@@ -5,8 +5,8 @@
  *
  * Matter device with two endpoints:
  *   1. Door Lock endpoint  – controls the relay (buzzer) to open the gate.
- *   2. Contact Sensor endpoint – reports doorbell ring events via the
- *      optocoupler input.
+ *   2. Generic Switch endpoint (momentary) – reports doorbell ring events
+ *      via the optocoupler input. Apple Home recognises this as a doorbell.
  *
  * Transport: Thread (IEEE 802.15.4) – works with Apple Home via Thread
  * border router.
@@ -160,18 +160,18 @@ static esp_err_t app_identification_cb(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Doorbell → Matter contact-sensor update                           */
+/*  Doorbell → Matter Generic Switch (InitialPress) event             */
 /* ------------------------------------------------------------------ */
 static void doorbell_event_handler(bool ringing)
 {
-    ESP_LOGI(TAG, "Doorbell event: %s", ringing ? "RING" : "IDLE");
+    if (!ringing) {
+        return; /* only react to press, not release */
+    }
+    ESP_LOGI(TAG, "Doorbell RING – sending InitialPress event");
 
-    esp_matter_attr_val_t val = esp_matter_bool(ringing);
-
-    attribute::update(s_sensor_endpoint_id,
-                      BooleanState::Id,
-                      BooleanState::Attributes::StateValue::Id,
-                      &val);
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
+    cluster::switch_cluster::event::send_initial_press(s_sensor_endpoint_id, 1);
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 }
 
 /* ------------------------------------------------------------------ */
@@ -229,18 +229,23 @@ extern "C" void app_main(void)
         ESP_LOGI(TAG, "Door Lock endpoint created: %d", s_lock_endpoint_id);
     }
 
-    /* --- Endpoint 2: Contact Sensor (doorbell ring) -------------- */
+    /* --- Endpoint 2: Generic Switch / Doorbell ------------------- */
     {
-        contact_sensor::config_t sensor_config;
-        sensor_config.boolean_state.state_value = false; /* no ring initially */
-        endpoint_t *ep = contact_sensor::create(node, &sensor_config,
+        generic_switch::config_t sw_config;
+        sw_config.switch_cluster.number_of_positions = 2;
+        sw_config.switch_cluster.current_position = 0;
+        sw_config.switch_cluster.feature_flags =
+            cluster::switch_cluster::feature::momentary_switch::get_id();
+        endpoint_t *ep = generic_switch::create(node, &sw_config,
                                                  ENDPOINT_FLAG_NONE, NULL);
         if (ep == NULL) {
-            ESP_LOGE(TAG, "Failed to create contact_sensor endpoint");
+            ESP_LOGE(TAG, "Failed to create generic_switch endpoint");
             return;
         }
         s_sensor_endpoint_id = endpoint::get_id(ep);
-        ESP_LOGI(TAG, "Contact Sensor endpoint created: %d", s_sensor_endpoint_id);
+
+        ESP_LOGI(TAG, "Generic Switch (doorbell) endpoint created: %d",
+                 s_sensor_endpoint_id);
     }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
