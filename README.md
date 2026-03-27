@@ -27,6 +27,89 @@ doorbell notifications straight from the **Apple Home** app on your iPhone.
 > **Tip:** You can change the GPIOs in
 > `main/drivers/relay_driver.h` and `main/drivers/doorbell_driver.h`.
 
+### Wiring Diagram
+
+```
+                         ESP32-H2-DevKitM-1
+                        ┌───────────────────┐
+                    USB │ ┌───────────────┐  │
+                   port │ │  ESP32-H2     │  │
+                        │ │  module       │  │
+                        │ └───────────────┘  │
+                        │                    │
+              3V3  ○────┤ 3V3          GND ├────○  GND
+                        │                    │
+  Relay ←── ○────┤ GPIO 2       GPIO 3 ├────○ ──→ Doorbell
+                        │                    │
+                        │      ...           │
+                        └───────────────────┘
+```
+
+#### Relay Output (GPIO 2) – Gate Opener
+
+```
+  ESP32-H2                  Relay Module              Gate Buzzer
+  ┌──────┐                 ┌───────────┐             ┌──────────┐
+  │      │                 │           │             │          │
+  │ GPIO2├────────────────→│ IN    COM ├─────────────┤ Terminal │
+  │      │                 │        NO ├─────────────┤ Terminal │
+  │  GND ├─────────────────┤ GND      │             │          │
+  │  3V3 ├─────────────────┤ VCC      │             └──────────┘
+  │      │                 │           │
+  └──────┘                 └───────────┘
+
+  GPIO 2 = HIGH  →  relay closes  →  buzzer activates (door opens)
+  GPIO 2 = LOW   →  relay opens   →  buzzer off (door locked)
+```
+
+**Multimeter test (without relay module):**
+1. Set multimeter to **DC Voltage** mode.
+2. Connect **black probe** to any **GND** pin on the DevKit.
+3. Connect **red probe** to **GPIO 2**.
+4. Unlock the door from Apple Home.
+5. You should see **≈ 3.3 V** for 10 seconds (auto-lock delay), then back to **0 V**.
+
+#### Doorbell Input (GPIO 3) – Optocoupler
+
+```
+  Doorbell                 Optocoupler               ESP32-H2
+  Switch                   (e.g. PC817)             ┌──────┐
+  ┌─────┐                 ┌───────────┐             │      │
+  │  ~  ├────── R1 ──────→│ Anode  Col├─────────────┤GPIO 3│
+  │  ~  ├────────────────→│ Cathode Em├──────┐      │      │
+  └─────┘                 └───────────┘      │      │      │
+  (AC from                                   ├──────┤ GND  │
+   intercom)                                 │      │      │
+                                             │      │  3V3 │ (internal
+                                             │      │  ┊   │  pull-up)
+                                             │      │  ┊───│──→ GPIO3
+                                             │      └──────┘     idle=HIGH
+                                             │
+                                            GND
+
+  Idle:         GPIO 3 = HIGH  (pull-up, optocoupler OFF)
+  Ring pressed: GPIO 3 = LOW   (optocoupler ON, pulls to GND)
+                → triggers InitialPress event → Apple Home notification
+```
+
+**Multimeter test (without optocoupler):**
+1. Set multimeter to **DC Voltage** mode.
+2. Connect **black probe** to **GND** on the DevKit.
+3. Connect **red probe** to **GPIO 3**.
+4. Idle state: you should see **≈ 3.3 V** (internal pull-up).
+5. Briefly connect **GPIO 3 to GND** with a jumper wire — this simulates a
+   doorbell ring. The voltage drops to **0 V** and the serial monitor shows
+   `Doorbell RING – sending InitialPress event`.
+
+### Quick Test Without External Hardware
+
+You only need the DevKit and a **jumper wire** (or a piece of wire):
+
+| Test | How | Expected Result |
+|------|-----|-----------------|
+| **Unlock** | Send unlock from Apple Home | GPIO 2 goes HIGH (3.3 V) for 10 s, then LOW |
+| **Doorbell** | Touch a wire from GPIO 3 to GND | Monitor shows `InitialPress`, Apple Home notification |
+
 ## Prerequisites
 
 1. **ESP-IDF** v5.3 or later – <https://docs.espressif.com/projects/esp-idf/en/stable/esp32h2/get-started/>
