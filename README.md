@@ -9,12 +9,13 @@ doorbell notifications straight from the **Apple Home** app on your iPhone.
 | Feature | Matter Device Type | Hardware |
 |---|---|---|
 | **Gate opener** (buzzer relay) | Door Lock | Relay module (active-high) |
-| **Doorbell detection** | Contact Sensor | Optocoupler (active-low) |
+| **Doorbell detection** | Generic Switch (Momentary) | Optocoupler (active-low) |
 
 * Communicates over **Thread** (IEEE 802.15.4) – needs a Thread Border Router
   (e.g. Apple TV 4K, HomePod Mini).
 * Fully controlled via **Apple Home** / any Matter-compatible controller.
-* Relay pulses for 3 seconds on "unlock" and returns to locked state.
+* Door automatically locks again after a configurable delay (default 10 s).
+* Door is always forced to **locked** state on every boot for safety.
 
 ## Hardware Wiring
 
@@ -28,7 +29,7 @@ doorbell notifications straight from the **Apple Home** app on your iPhone.
 
 ## Prerequisites
 
-1. **ESP-IDF** v5.1 or later – <https://docs.espressif.com/projects/esp-idf/en/stable/esp32h2/get-started/>
+1. **ESP-IDF** v5.3 or later – <https://docs.espressif.com/projects/esp-idf/en/stable/esp32h2/get-started/>
 2. **esp-matter** SDK – <https://github.com/espressif/esp-matter>
 3. Set environment variables:
    ```bash
@@ -63,7 +64,8 @@ idf.py -p /dev/cu.usbmodem* flash monitor
 6. Once paired you will see:
    * A **Door Lock** tile – tap to unlock (the gate automatically locks
      again after 10 seconds).
-   * A **Contact Sensor** tile – shows "Open" when someone rings the doorbell.
+   * A **Doorbell** tile (Generic Switch) – sends a notification when
+     someone rings the doorbell.
 
 ### Resetting Commissioning Data
 
