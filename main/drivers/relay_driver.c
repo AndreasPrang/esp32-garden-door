@@ -39,8 +39,8 @@ esp_err_t relay_driver_init(gpio_num_t gpio_num)
         ESP_LOGE(TAG, "gpio_config failed: %s", esp_err_to_name(err));
         return err;
     }
-    gpio_set_level(s_relay_gpio, 0);
-    s_relay_state = false;
+    gpio_set_level(s_relay_gpio, 1);
+    s_relay_state = true;
 
     /* Create one-shot timer for pulse */
     const esp_timer_create_args_t timer_args = {

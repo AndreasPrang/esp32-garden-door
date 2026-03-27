@@ -55,7 +55,7 @@ static esp_timer_handle_t s_auto_lock_timer = NULL;
 static void auto_lock_timer_cb(void *arg)
 {
     ESP_LOGI(TAG, "Auto-lock: locking door after %d s", AUTO_LOCK_DELAY_S);
-    relay_driver_set(false);
+    relay_driver_set(true);
 
     /* Must hold CHIP stack lock when modifying attributes */
     using namespace chip::app::Clusters::DoorLock;
@@ -125,8 +125,8 @@ static esp_err_t app_attribute_update_cb(
             ESP_LOGI(TAG, "LockState update -> %d", lock_state);
 
             if (lock_state == 2) {
-                /* Unlocked -> activate relay and schedule auto-lock */
-                relay_driver_set(true);
+                /* Unlocked -> deactivate relay and schedule auto-lock */
+                relay_driver_set(false);
                 if (s_auto_lock_timer) {
                     esp_timer_stop(s_auto_lock_timer); /* reset if already running */
                     esp_timer_start_once(s_auto_lock_timer,
@@ -134,11 +134,11 @@ static esp_err_t app_attribute_update_cb(
                 }
                 ESP_LOGI(TAG, "Door unlocked – auto-lock in %d s", AUTO_LOCK_DELAY_S);
             } else {
-                /* Locked -> cancel timer, ensure relay is off */
+                /* Locked -> cancel timer, ensure relay is on */
                 if (s_auto_lock_timer) {
                     esp_timer_stop(s_auto_lock_timer);
                 }
-                relay_driver_set(false);
+                relay_driver_set(true);
             }
         }
     }
@@ -268,7 +268,7 @@ extern "C" void app_main(void)
         chip::DeviceLayer::PlatformMgr().LockChipStack();
         DoorLockServer::Instance().SetLockState(s_lock_endpoint_id, DlLockState::kLocked);
         chip::DeviceLayer::PlatformMgr().UnlockChipStack();
-        relay_driver_set(false);
+        relay_driver_set(true);
         ESP_LOGI(TAG, "Boot: door forced to LOCKED state");
     }
 
