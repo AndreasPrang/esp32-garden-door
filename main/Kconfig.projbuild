@@ -1,0 +1,20 @@
+menu "Garden Door Controller"
+
+    config GARDEN_DOOR_AUTO_LOCK_DELAY_S
+        int "Auto-lock delay after unlock (seconds)"
+        default 10
+        range 1 300
+        help
+            Number of seconds after which the door automatically locks
+            again following an unlock command. Set to a higher value if
+            you need more time to walk through the gate.
+
+    config GARDEN_DOOR_RELAY_PULSE_MS
+        int "Relay pulse duration (milliseconds)"
+        default 3000
+        range 500 30000
+        help
+            How long the relay stays energised when the door is unlocked.
+            This is the buzzer activation time.
+
+endmenu

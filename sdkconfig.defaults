@@ -1,0 +1,38 @@
+# Flash size
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# Enable BT
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLE_CONN_REATTEMPT=n
+
+# Enable lwip ipv6 autoconfig
+CONFIG_LWIP_IPV6_AUTOCONFIG=y
+
+# Custom partition table
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0xC000
+
+# Disable chip shell (not needed for production)
+CONFIG_ENABLE_CHIP_SHELL=n
+
+# Dynamic endpoints: root_node + door_lock + contact_sensor
+CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT=4
+
+# Enable lwIP route hooks
+CONFIG_LWIP_HOOK_IP6_ROUTE_DEFAULT=y
+CONFIG_LWIP_HOOK_ND6_GET_GW_DEFAULT=y
+
+# Disable softap
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=n
+CONFIG_ENABLE_WIFI_AP=n
+
+# Use compact attribute storage mode
+CONFIG_ESP_MATTER_NVS_USE_COMPACT_ATTR_STORAGE=y
+
+# Enable HKDF in mbedtls
+CONFIG_MBEDTLS_HKDF_C=y
+
+# Increase LwIP IPv6 address number
+CONFIG_LWIP_IPV6_NUM_ADDRESSES=6
