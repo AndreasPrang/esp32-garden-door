@@ -4,9 +4,9 @@
  * ESP32-H2 Garden Door Controller
  *
  * Matter device with two endpoints:
- *   1. Door Lock endpoint  – controls the relay (buzzer) to open the gate.
- *   2. Generic Switch endpoint (momentary) – reports doorbell ring events
- *      via the optocoupler input. Apple Home recognises this as a doorbell.
+ *   1. Door Lock endpoint     – controls the relay (buzzer) to open the gate.
+ *   2. Contact Sensor endpoint – reports doorbell rings as contact open/close.
+ *      Apple Home sends a notification when the sensor opens.
  *
  * Transport: Thread (IEEE 802.15.4) – works with Apple Home via Thread
  * border router.
@@ -41,8 +41,8 @@ using namespace chip::app::Clusters;
 /* ------------------------------------------------------------------ */
 /*  Endpoint / cluster IDs (filled during create)                     */
 /* ------------------------------------------------------------------ */
-static uint16_t s_lock_endpoint_id   = 0;
-static uint16_t s_sensor_endpoint_id = 0;
+static uint16_t s_lock_endpoint_id    = 0;
+static uint16_t s_doorbell_endpoint_id = 0;
 
 /* Duration the relay stays on when "unlock" is requested (ms) */
 #define DOOR_OPEN_PULSE_MS  CONFIG_GARDEN_DOOR_RELAY_PULSE_MS
@@ -51,6 +51,7 @@ static uint16_t s_sensor_endpoint_id = 0;
 #define AUTO_LOCK_DELAY_S   CONFIG_GARDEN_DOOR_AUTO_LOCK_DELAY_S
 
 static esp_timer_handle_t s_auto_lock_timer = NULL;
+static esp_timer_handle_t s_doorbell_reset_timer = NULL;
 
 static void auto_lock_timer_cb(void *arg)
 {
@@ -63,6 +64,17 @@ static void auto_lock_timer_cb(void *arg)
     DoorLockServer::Instance().SetLockState(s_lock_endpoint_id,
         DlLockState::kLocked, OperationSourceEnum::kAuto);
     chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+}
+
+/* Reset contact sensor back to "no contact" (false) after short pulse */
+static void doorbell_reset_timer_cb(void *arg)
+{
+    ESP_LOGI(TAG, "Doorbell: resetting contact sensor to closed");
+    esp_matter_attr_val_t val = esp_matter_nullable_bool(false);
+    attribute::update(s_doorbell_endpoint_id,
+                      BooleanState::Id,
+                      BooleanState::Attributes::StateValue::Id,
+                      &val);
 }
 
 /* ------------------------------------------------------------------ */
@@ -160,18 +172,25 @@ static esp_err_t app_identification_cb(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Doorbell → Matter Generic Switch (InitialPress) event             */
+/*  Doorbell → Matter Contact Sensor (open / close pulse)             */
 /* ------------------------------------------------------------------ */
 static void doorbell_event_handler(bool ringing)
 {
     if (!ringing) {
         return; /* only react to press, not release */
     }
-    ESP_LOGI(TAG, "Doorbell RING – sending InitialPress event");
+    ESP_LOGI(TAG, "Doorbell RING – setting contact sensor to OPEN");
 
-    chip::DeviceLayer::PlatformMgr().LockChipStack();
-    cluster::switch_cluster::event::send_initial_press(s_sensor_endpoint_id, 1);
-    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+    /* Set contact sensor to "open" (true = contact detected / ring) */
+    esp_matter_attr_val_t val = esp_matter_nullable_bool(true);
+    attribute::update(s_doorbell_endpoint_id,
+                      BooleanState::Id,
+                      BooleanState::Attributes::StateValue::Id,
+                      &val);
+
+    /* Reset back to closed after 1 second */
+    esp_timer_stop(s_doorbell_reset_timer);
+    esp_timer_start_once(s_doorbell_reset_timer, 1000000ULL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -204,6 +223,15 @@ extern "C" void app_main(void)
     };
     ESP_ERROR_CHECK(esp_timer_create(&auto_lock_args, &s_auto_lock_timer));
 
+    /* --- Doorbell reset timer --- */
+    const esp_timer_create_args_t doorbell_reset_args = {
+        .callback = doorbell_reset_timer_cb,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "doorbell_rst",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&doorbell_reset_args, &s_doorbell_reset_timer));
+
     /* --- Matter node --- */
     node::config_t node_config;
     node_t *node = node::create(&node_config, app_attribute_update_cb,
@@ -229,23 +257,19 @@ extern "C" void app_main(void)
         ESP_LOGI(TAG, "Door Lock endpoint created: %d", s_lock_endpoint_id);
     }
 
-    /* --- Endpoint 2: Generic Switch / Doorbell ------------------- */
+    /* --- Endpoint 2: Contact Sensor (doorbell) -------------------- */
     {
-        generic_switch::config_t sw_config;
-        sw_config.switch_cluster.number_of_positions = 2;
-        sw_config.switch_cluster.current_position = 0;
-        sw_config.switch_cluster.feature_flags =
-            cluster::switch_cluster::feature::momentary_switch::get_id();
-        endpoint_t *ep = generic_switch::create(node, &sw_config,
+        contact_sensor::config_t cs_config;
+        cs_config.boolean_state.state_value = false; /* closed = no ring */
+        endpoint_t *ep = contact_sensor::create(node, &cs_config,
                                                  ENDPOINT_FLAG_NONE, NULL);
         if (ep == NULL) {
-            ESP_LOGE(TAG, "Failed to create generic_switch endpoint");
+            ESP_LOGE(TAG, "Failed to create contact_sensor endpoint");
             return;
         }
-        s_sensor_endpoint_id = endpoint::get_id(ep);
-
-        ESP_LOGI(TAG, "Generic Switch (doorbell) endpoint created: %d",
-                 s_sensor_endpoint_id);
+        s_doorbell_endpoint_id = endpoint::get_id(ep);
+        ESP_LOGI(TAG, "Contact Sensor (doorbell) endpoint created: %d",
+                 s_doorbell_endpoint_id);
     }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD

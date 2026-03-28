@@ -9,7 +9,7 @@ doorbell notifications straight from the **Apple Home** app on your iPhone.
 | Feature | Matter Device Type | Hardware |
 |---|---|---|
 | **Gate opener** (buzzer relay) | Door Lock | Relay module (active-high) |
-| **Doorbell detection** | Generic Switch (Momentary) | Optocoupler (active-low) |
+| **Doorbell detection** | Contact Sensor | Optocoupler (active-low) |
 
 * Communicates over **Thread** (IEEE 802.15.4) – needs a Thread Border Router
   (e.g. Apple TV 4K, HomePod Mini).
@@ -132,7 +132,7 @@ side up, USB port at the bottom). The four pins you need are marked with `◄`:
 4. Idle state: you should see **≈ 3.3 V** (internal pull-up).
 5. Briefly connect **GPIO 3 to GND** with a jumper wire — this simulates a
    doorbell ring. The voltage drops to **0 V** and the serial monitor shows
-   `Doorbell RING – sending InitialPress event`.
+   `Doorbell RING – setting contact sensor to OPEN`.
 
 ### Quick Test Without External Hardware
 
@@ -172,16 +172,20 @@ idf.py -p /dev/cu.usbmodem* flash monitor
 
 1. After flashing, the device enters **commissioning mode** automatically.
 2. Open the **Home** app on your iPhone.
-3. Tap **+** → **Add Accessory** → **More options…**
-4. Choose **Enter Code Manually** and type: **`34970112332`**
+3. Tap **+** → **Add Accessory** and scannen den QR-Code:
+
+   ![Matter QR Code](qrcode.png)
+
+   Alternativ **More options…** → **Enter Code Manually**: **`34970112332`**
    - Passcode: `20202021` / Discriminator: `3840` (esp-matter defaults)
-5. A **Thread Border Router** (Apple TV 4K or HomePod mini) is required in your
+   - QR-Payload: `MT:-24J042C00KA0648G00`
+4. A **Thread Border Router** (Apple TV 4K or HomePod mini) is required in your
    network to complete commissioning.
-6. Once paired you will see:
+5. Once paired you will see:
    * A **Door Lock** tile – tap to unlock (the gate automatically locks
      again after 10 seconds).
-   * A **Doorbell** tile (Generic Switch) – sends a notification when
-     someone rings the doorbell.
+   * A **Contact Sensor** tile – opens briefly when someone rings the
+     doorbell. Enable notifications in sensor settings for push alerts.
 
 ### Resetting Commissioning Data
 
