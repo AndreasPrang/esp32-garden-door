@@ -74,9 +74,6 @@ side up, USB port at the bottom). The four pins you need are marked with `◄`:
 | 2 | **GND** (J1 pin 1, top-right) | Relay GND + Optocoupler emitter | Black |
 | 3 | **GPIO 2** (J1 pin 8, right side) | Relay IN | Yellow |
 | 4 | **GPIO 3** (J3 pin 5, left side) | Optocoupler collector | Green |
-                        │      ...           │
-                        └───────────────────┘
-```
 
 #### Relay Output (GPIO 2) – Gate Opener
 
@@ -86,8 +83,8 @@ side up, USB port at the bottom). The four pins you need are marked with `◄`:
   │      │                 │           │             │          │
   │ GPIO2├────────────────→│ IN    COM ├─────────────┤ Terminal │
   │      │                 │        NO ├─────────────┤ Terminal │
-  │  GND ├─────────────────┤ GND      │             │          │
-  │  3V3 ├─────────────────┤ VCC      │             └──────────┘
+  │  GND ├─────────────────┤ GND       │             │          │
+  │  3V3 ├─────────────────┤ VCC       │             └──────────┘
   │      │                 │           │
   └──────┘                 └───────────┘
 
